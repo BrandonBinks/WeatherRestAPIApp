@@ -73,10 +73,10 @@ public class WeatherServiceTest {
     @Test
     public void testApiKeyRateLimitException(){
         for (int i = 0; i < 5; i++){
-            weatherService.getWeather("London", "UK", "API_KEY_1");
+            weatherService.getWeather("London", "UK", "API_KEY_2");
         }
         Exception exception = assertThrows(ApiKeyLimitExceededException.class, () ->
-                weatherService.getWeather("London", "UK", "API_KEY_1"));
+                weatherService.getWeather("London", "UK", "API_KEY_2"));
         assertEquals("Hourly limit exceeded.", exception.getMessage());
     }
 
@@ -84,7 +84,7 @@ public class WeatherServiceTest {
     public void testNoWeatherDataReturned() {
         when(openWeatherMapClient.getWeather(Mockito.anyString(), Mockito.anyString())).thenReturn(new WeatherResponse());
 
-        WeatherResponse result = weatherService.getWeather("London", "UK", "API_KEY_1");
+        WeatherResponse result = weatherService.getWeather("London", "UK", "API_KEY_3");
         assertNull(result.getWeather());
     }
 
@@ -98,7 +98,7 @@ public class WeatherServiceTest {
 
         when(openWeatherMapClient.getWeather(Mockito.anyString(), Mockito.anyString())).thenReturn(response);
 
-        weatherService.getWeather("London", "UK", "API_KEY_1");
+        weatherService.getWeather("London", "UK", "API_KEY_3");
 
         Mockito.verify(weatherRepository, Mockito.times(1)).save(Mockito.any());
     }
@@ -106,27 +106,27 @@ public class WeatherServiceTest {
     @Test
     public void testRateLimitResetsAfterOneHour() {
         for (int i = 0; i < 5; i++) {
-            weatherService.getWeather("London", "UK", "API_KEY_1");
+            weatherService.getWeather("London", "UK", "API_KEY_5");
         }
 
         // Advance time by one hour
         Instant newInstant = Instant.parse("2024-07-24T12:00:00Z");
         when(clock.instant()).thenReturn(newInstant);
 
-        assertDoesNotThrow(() -> weatherService.getWeather("London", "UK", "API_KEY_1"));
+        assertDoesNotThrow(() -> weatherService.getWeather("London", "UK", "API_KEY_5"));
     }
 
     @Test
     public void testMissingCityField() {
         Exception exception = assertThrows(MissingFieldException.class, () ->
-                weatherService.getWeather("", "UK", "API_KEY_1"));
+                weatherService.getWeather("", "UK", "API_KEY_4"));
         assertEquals("City field is missing.", exception.getMessage());
     }
 
     @Test
     public void testMissingCountryField() {
         Exception exception = assertThrows(MissingFieldException.class, () ->
-                weatherService.getWeather("London", "", "API_KEY_1"));
+                weatherService.getWeather("London", "", "API_KEY_4"));
         assertEquals("Country field is missing.", exception.getMessage());
     }
 
