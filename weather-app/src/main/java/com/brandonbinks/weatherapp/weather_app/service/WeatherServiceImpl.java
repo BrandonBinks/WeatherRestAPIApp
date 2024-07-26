@@ -32,7 +32,7 @@ public class WeatherServiceImpl implements WeatherService {
     private static final ConcurrentHashMap<String, AtomicInteger> apiKeyUsage = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, LocalDateTime> apiKeyTimestamp = new ConcurrentHashMap<>();
 
-    private static final String weatherApiKey = "9894e3062fefc500c28ea35af4375279";
+    private static final String weatherApiKey = "REPLACE_WITH_OWN_OPENWEATHER_API_KEY";
 
     private static final String[] VALID_API_KEYS = {
         "API_KEY_1", "API_KEY_2", "API_KEY_3", "API_KEY_4", "API_KEY_5"

@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.brandonbinks.weatherapp.weather_app.exception.ApiKeyLimitExceededException;
 import com.brandonbinks.weatherapp.weather_app.exception.InvalidApiKeyException;
+import com.brandonbinks.weatherapp.weather_app.exception.MissingFieldException;
 import com.brandonbinks.weatherapp.weather_app.model.WeatherResponse;
 import com.brandonbinks.weatherapp.weather_app.service.WeatherService;
 
@@ -56,9 +57,9 @@ public class WeatherControllerTest {
 
     @Test
     public void testApiKeyRateLimitExceeded() throws Exception {
-        when(weatherService.getWeather("Melbourne", "AUS", "API_KEY_1")).thenThrow(new ApiKeyLimitExceededException("Hourly limit exceeded."));
+        when(weatherService.getWeather("Melbourne", "AUS", "API_KEY_2")).thenThrow(new ApiKeyLimitExceededException("Hourly limit exceeded."));
 
-        mockMvc.perform(get("/weather?city=Melbourne&country=AUS&apiKey=API_KEY_1"))
+        mockMvc.perform(get("/weather?city=Melbourne&country=AUS&apiKey=API_KEY_2"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.message").value("Hourly limit exceeded."));
     }
@@ -71,11 +72,14 @@ public class WeatherControllerTest {
 
     @Test
     public void testInvalidCityOrCountry() throws Exception {
-        mockMvc.perform(get("/weather?city=&country=AUS&apiKey=API_KEY_1"))
+        when(weatherService.getWeather("", "AUS", "API_KEY_3")).thenThrow(new MissingFieldException("City field is missing."));
+        when(weatherService.getWeather("Melbourne", "", "API_KEY_3")).thenThrow(new MissingFieldException("Country field is missing."));
+
+        mockMvc.perform(get("/weather?city=&country=AUS&apiKey=API_KEY_3"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("City field is missing."));;
 
-        mockMvc.perform(get("/weather?city=Melbourne&country=&apiKey=API_KEY_1"))
+        mockMvc.perform(get("/weather?city=Melbourne&country=&apiKey=API_KEY_3"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Country field is missing."));
     }
@@ -83,9 +87,9 @@ public class WeatherControllerTest {
     @Test
     public void testNoWeatherData() throws Exception {
         WeatherResponse response = new WeatherResponse();
-        when(weatherService.getWeather("Melbourne", "AUS", "API_KEY_1")).thenReturn(response);
+        when(weatherService.getWeather("Melbourne", "AUS", "API_KEY_4")).thenReturn(response);
 
-        mockMvc.perform(get("/weather?city=Melbourne&country=AUS&apiKey=API_KEY_1"))
+        mockMvc.perform(get("/weather?city=Melbourne&country=AUS&apiKey=API_KEY_4"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.weather").isEmpty());
     }
