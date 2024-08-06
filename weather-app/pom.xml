@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.brandonbinks.weatherapp</groupId>
 	<artifactId>weather-app</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>weather-app</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
@@ -59,6 +59,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>

@@ -2,20 +2,17 @@ package com.brandonbinks.weatherapp.weather_app.service;
 
 
 import com.brandonbinks.weatherapp.weather_app.client.OpenWeatherMapClient;
-import com.brandonbinks.weatherapp.weather_app.exception.ApiKeyLimitExceededException;
-import com.brandonbinks.weatherapp.weather_app.exception.InvalidApiKeyException;
 import com.brandonbinks.weatherapp.weather_app.exception.MissingFieldException;
 import com.brandonbinks.weatherapp.weather_app.model.WeatherEntity;
 import com.brandonbinks.weatherapp.weather_app.model.WeatherResponse;
 import com.brandonbinks.weatherapp.weather_app.repository.WeatherRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class WeatherServiceImpl implements WeatherService {
@@ -26,72 +23,72 @@ public class WeatherServiceImpl implements WeatherService {
     @Autowired
     private WeatherRepository weatherRepository;
 
-    private final Clock clock;
+    @Autowired
+    private ApiService apiService;
 
-    private static final int RATE_LIMIT = 5;
-    private static final ConcurrentHashMap<String, AtomicInteger> apiKeyUsage = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, LocalDateTime> apiKeyTimestamp = new ConcurrentHashMap<>();
+    @Value("${openweathermap.api.key}")
+    private String weatherApiKey;
 
-    private static final String weatherApiKey = "REPLACE_WITH_OWN_OPENWEATHER_API_KEY";
-
-    private static final String[] VALID_API_KEYS = {
-        "API_KEY_1", "API_KEY_2", "API_KEY_3", "API_KEY_4", "API_KEY_5"
-    };
-
-    public WeatherServiceImpl(Clock clock) {
-        this.clock = clock;
-    }
 
     @Override
     public WeatherResponse getWeather(String city, String country, String apiKey){
-        if(!isValidApiKey(apiKey)){
-            throw new InvalidApiKeyException("Invalid API Key.");
+        apiService.validateApiKey(apiKey);
+        apiService.enforceRateLimit(apiKey);
+        validateFields(city, country);
+
+        String cityCountry = city + "," + country;
+        WeatherResponse response = openWeatherMapClient.getWeather(cityCountry, weatherApiKey);
+
+        if (response != null && response.getWeather() != null && !response.getWeather().isEmpty()){
+            updateWeatherData(city, country, response);
         }
 
+        return checkDatabaseForWeather(city, country);
+    }
+
+    @Override
+    public void validateFields(String city, String country) {
         if (city == null || city.isEmpty()) {
             throw new MissingFieldException("City field is missing.");
-        } 
-        
+        }
+
         if (country == null || country.isEmpty()) {
             throw new MissingFieldException("Country field is missing.");
         }
+    }
 
-        String cityCountry = city + "," + country;
-        enforceRateLimit(apiKey);
+    @Override
+    public void updateWeatherData(String city, String country, WeatherResponse response) {
+        Optional<WeatherEntity> weatherEntityOptional = weatherRepository.findByCityAndCountry(city, country);
 
-        WeatherResponse response = openWeatherMapClient.getWeather(cityCountry, weatherApiKey);
-        if (response != null && response.getWeather() != null && !response.getWeather().isEmpty()){
-            WeatherEntity weatherEntity = new WeatherEntity(city, country, response.getWeather().get(0).getDescription());
+        if (weatherEntityOptional.isPresent()) {
+            WeatherEntity weatherEntity = weatherEntityOptional.get();
+            String newDescription = response.getWeather().getFirst().getDescription();
+
+            if (!weatherEntity.getDescription().equals(newDescription)) {
+                weatherEntity.setDescription(newDescription);
+                weatherRepository.save(weatherEntity);
+            }
+        } else {
+            WeatherEntity weatherEntity = new WeatherEntity(city, country, response.getWeather().getFirst().getDescription());
             weatherRepository.save(weatherEntity);
         }
-
-        return response;
     }
 
-    private boolean isValidApiKey(String apiKey){
-        for (String validApiKey : VALID_API_KEYS){
-            if (validApiKey.equals(apiKey)){
-                return true;
-            }
-        }
-        return false;
-    }
+    @Override
+    public WeatherResponse checkDatabaseForWeather(String city, String country) {
+        Optional<WeatherEntity> weatherEntityOptional = weatherRepository.findByCityAndCountry(city, country);
 
-    private void enforceRateLimit(String apiKey) {
-        LocalDateTime now = LocalDateTime.now(clock);
-        apiKeyUsage.putIfAbsent(apiKey, new AtomicInteger(0));
-        apiKeyTimestamp.putIfAbsent(apiKey, now);
-
-        if (apiKeyUsage.get(apiKey).get() >= RATE_LIMIT &&
-            apiKeyTimestamp.get(apiKey).isAfter(now.minusHours(1))){
-                throw new ApiKeyLimitExceededException("Hourly limit exceeded.");
-            }
-        
-        if (apiKeyTimestamp.get(apiKey).isBefore(now.minusHours(1))){
-            apiKeyUsage.get(apiKey).set(0);
-            apiKeyTimestamp.put(apiKey, now);
+        if (weatherEntityOptional.isPresent()) {
+            WeatherEntity weatherEntity = weatherEntityOptional.get();
+            WeatherResponse response = new WeatherResponse();
+            WeatherResponse.Weather weather = new WeatherResponse.Weather();
+            weather.setDescription(weatherEntity.getDescription());
+            response.setWeather(List.of(weather));
+            return response;
         }
 
-        apiKeyUsage.get(apiKey).incrementAndGet();
+        return null;
     }
+
 }

@@ -1,6 +1,7 @@
 package com.brandonbinks.weatherapp.weather_app.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.brandonbinks.weatherapp.weather_app.service.WeatherService;
@@ -17,8 +18,8 @@ public class WeatherController {
 
     @GetMapping("/weather")
     public WeatherResponse getWeather(@RequestParam String city,
-                             @RequestParam String country,
-                             @RequestParam String apiKey) {
+                             @RequestParam String country) {
+        String apiKey = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return weatherService.getWeather(city, country, apiKey);
     }
     
